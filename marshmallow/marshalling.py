@@ -33,8 +33,6 @@ class ErrorStore(object):
     def __init__(self):
         #: Dictionary of errors stored during serialization
         self.errors = {}
-        #: List of field_names which have validation errors
-        self.error_field_names = []
         #: True while (de)serializing a collection
         self._pending = False
         #: Dictionary of extra kwargs from user raised exception
@@ -44,7 +42,6 @@ class ErrorStore(object):
         return self.errors if index is None else self.errors.setdefault(index, {})
 
     def store_error(self, field_name, messages, index=None):
-        self.error_field_names.append(field_name)
         errors = self.get_errors(index=index)
         # Warning: Mutation!
         if isinstance(messages, dict):
@@ -54,10 +51,9 @@ class ErrorStore(object):
         else:
             errors.setdefault(field_name, []).extend(messages)
 
-    def store_validation_error(self, field_names, error, index=None):
+    def store_validation_error(self, field_name, error, index=None):
         self.error_kwargs.update(error.kwargs)
-        for field_name in field_names:
-            self.store_error(field_name, error.messages, index=index)
+        self.store_error(field_name, error.messages, index=index)
         # When a Nested field fails validation, the marshalled data is stored
         # on the ValidationError's valid_data attribute
         return error.valid_data or missing
@@ -75,7 +71,7 @@ class ErrorStore(object):
         try:
             value = getter_func(data)
         except ValidationError as error:
-            return self.store_validation_error((field_name,), error, index)
+            return self.store_validation_error(field_name, error, index)
         return value
 
 
@@ -119,7 +115,6 @@ class Marshaller(ErrorStore):
             if self.errors:
                 raise ValidationError(
                     self.errors,
-                    field_names=self.error_field_names,
                     data=ret,
                 )
             return ret
@@ -142,7 +137,6 @@ class Marshaller(ErrorStore):
         if self.errors and not self._pending:
             raise ValidationError(
                 self.errors,
-                field_names=self.error_field_names,
                 data=ret,
             )
         return ret
@@ -169,8 +163,8 @@ class Unmarshaller(ErrorStore):
                 validator_func(output)
         except ValidationError as err:
             # Store or reraise errors
-            field_names = err.field_names or [SCHEMA]
-            self.store_validation_error(field_names, err, index=index)
+            field_name = err.field_name or SCHEMA
+            self.store_validation_error(field_name, err, index=index)
 
     def deserialize(
         self, data, fields_dict, many=False, partial=False,
