@@ -244,7 +244,6 @@ class BaseSchema(base.SchemaABC):
         self._data = None  # the cached, serialized data
         self.many = many
         self.opts = self.OPTIONS_CLASS(self.Meta)
-        self.only = only or ()
         self.exclude = exclude or ()
         self.prefix = prefix
         self.strict = strict or self.opts.strict
@@ -613,7 +612,7 @@ class BaseSchema(base.SchemaABC):
     def _update_fields(self, obj=None, many=False):
         """Update fields based on the passed in object."""
         # if only __init__ param is specified, only return those fields
-        if self.only:
+        if self.only is not None:
             ret = self.__filter_fields(self.only, obj, many=many)
             self.__set_field_attrs(ret)
             self.fields = ret

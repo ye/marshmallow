@@ -408,6 +408,13 @@ def test_invalid_only_param(user):
     with pytest.raises(AttributeError):
         UserSchema(only=("_invalid", "name")).dump(user)
 
+def test_only_empty():
+    class MySchema(Schema):
+        foo = fields.Field()
+
+    sch = MySchema(only=())
+    assert 'foo' not in sch.dump({'foo': 'bar'})
+
 def test_strict_meta_option():
     class StrictUserSchema(UserSchema):
         class Meta:
